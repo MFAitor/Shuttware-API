@@ -57,8 +57,15 @@ public class ControladorPreview {
         Map<String, Object> preview = jdbc.queryForMap(
                 "SELECT ruta FROM preview WHERE id_preview = ?", id);
 
-        String ruta = (String) preview.get("ruta");
-        File file = new File(ruta);
+        String rutaRelativa = (String) preview.get("ruta");
+
+        // Resolver la ruta igual que en el escritorio
+        String appData = System.getenv("APPDATA");
+        if (appData == null) {
+            appData = System.getProperty("user.home");
+        }
+        File carpetaBase = new File(appData, "Shuttware/imagenes");
+        File file = new File(carpetaBase, rutaRelativa);
 
         if (!file.exists()) {
             return ResponseEntity.notFound().build();
@@ -68,5 +75,20 @@ public class ControladorPreview {
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_JPEG)
                 .body(resource);
+    }
+
+    // Endpoint para ver las previews nuevas de un cliente desde un id dado
+    @GetMapping("/previews/nuevas")
+    public List<Map<String, Object>> previewsNuevas(
+            @RequestParam int idUsuario,
+            @RequestParam(required = false, defaultValue = "0") int desdeId) {
+
+        return jdbc.queryForList(
+                "SELECT p.id_preview, p.id_sesion, p.ruta, p.pie " +
+                        "FROM preview p " +
+                        "JOIN sesion s ON p.id_sesion = s.id_sesion " +
+                        "WHERE s.id_usuario = ? AND p.id_preview > ? " +
+                        "ORDER BY p.id_preview",
+                idUsuario, desdeId);
     }
 }
