@@ -24,8 +24,9 @@ public class ControladorSesion {
         this.jdbc = jdbc;
     }
 
-    // Endpoint para solicitar una sesión en un hueco libre
-    // Si algo falla después de reservar el hueco, la transacción se deshace sola
+    // Endpoint para solicitar una sesion en un hueco libre
+    // Si algo falla despues de reservar el hueco, la transaccion se deshace sola
+    // Endpoint para solicitar una sesion en un hueco libre
     @PostMapping("/sesiones")
     @Transactional
     public Map<String, Object> solicitar(@RequestBody Map<String, Object> datos) {
@@ -36,26 +37,18 @@ public class ControladorSesion {
         Object nota = datos.get("nota");
         Object tipoEntrega = datos.get("tipoEntrega");
 
-        // Validar que los datos obligatorios no estén vacíos
         if (idUsuario == null || idHueco == null || tipo == null) {
             return Map.of("ok", false, "mensaje", "Faltan datos");
         }
 
-        // Pasar el hueco de libre a solicitado. Si ya no está libre, no se modifica
-        // ninguna fila
-        int filas = jdbc.update(
-                "UPDATE hueco SET estado = 'solicitado' WHERE id_hueco = ? AND estado = 'libre'",
-                idHueco);
-        if (filas == 0) {
-            return Map.of("ok", false, "mensaje", "El hueco ya no esta disponible");
+        try {
+            jdbc.update(
+                    "CALL pedir_hueco(?, ?, ?, ?, ?, ?)",
+                    idUsuario, idHueco, tipo, lugar, nota, tipoEntrega);
+            return Map.of("ok", true, "mensaje", "Sesion solicitada");
+        } catch (Exception e) {
+            return Map.of("ok", false, "mensaje", e.getMessage());
         }
-
-        // Crear la sesión pendiente de confirmación
-        jdbc.update(
-                "INSERT INTO sesion (id_usuario, id_hueco, tipo, lugar, nota, estado, tipo_entrega) " +
-                        "VALUES (?, ?, ?, ?, ?, 'pendiente', ?)",
-                idUsuario, idHueco, tipo, lugar, nota, tipoEntrega);
-        return Map.of("ok", true, "mensaje", "Sesion solicitada");
     }
 
     // Endpoint para ver la lista de sesiones de un cliente
